@@ -1,0 +1,45 @@
+table {
+    margin: auto;
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+td {
+    width: 2em;
+    height: 2em;
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding: 0.2em;
+}
+.casa-preta {
+    background: #000;
+}
+.casa-preta {
+    background: #CBBFB9;
+}
+.espaco {
+    width: 100%;
+    height: 100%;
+}
+.peca {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    box-shadow: 2px 2px 5px black;
+}
+.peca-branca {
+    background: white;
+    background-image: url('branca.png');
+}
+.peca-preta {
+    background: #7F6150;
+    background-image: url('preta.png');
+}
+@keyframes piscar {
+    0% { border: 2px solid red; }
+    50% { border: 2px solid blue; }
+    100% { border: 2px solid red; }
+}
+.selecionado {
+    /*animation: piscar 1s infinite;*/
+    background: radial-gradient(circle at 50% 50%, green, white);
+}

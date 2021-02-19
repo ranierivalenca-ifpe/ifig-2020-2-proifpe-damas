@@ -1,6 +1,8 @@
 const express = require('express');
+const fs = require('fs');
 
 const app = express();
+app.use('/static', express.static('public'));
 
 var casas = [
     [1, 0, 1, 0, 1, 0, 1, 0],
@@ -13,101 +15,121 @@ var casas = [
     [0, 1, 0, 1, 0, 1, 0, 1]
 ];
 
-var pecas = [
-    [0, 2, 0, 2, 0, 2, 0, 2],
-    [2, 0, 2, 0, 2, 0, 2, 0],
-    [0, 2, 0, 2, 0, 2, 0, 2],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0]
-];
-
+var clicaveis = [];
+var pecas = [];
+var jogador = 1;
 var peca_selecionada = [-1, -1];
 
-app.get('/', function(req, res) {
-    if (req.query['lin'] != undefined && req.query['col'] != undefined) {
+function temPecaSelecionada() {
+    return peca_selecionada[0] != -1 && peca_selecionada[1] != -1
+}
 
-        if (peca_selecionada[0] == -1 && peca_selecionada[1] == -1) {
-            // Nenhuma peça estava selecionada
-            // Marca a peça como selecionada
-            peca_selecionada = [req.query['lin'], req.query['col']];
-            console.log(peca_selecionada)
-        } else {
-            // Já existe uma peça selecionada
-            // Move a peça selecionada para a posição passada
-            var peca_i = peca_selecionada[0];
-            var peca_j = peca_selecionada[1];
+function resetarClicaveis() {
+    clicaveis =[
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    ];
+}
 
-            var localizacao_i = req.query['lin'];
-            var localizacao_j = req.query['col'];
+function pecaPodeMover(i, j) {
+    if (pecas[i][j] == 1) { // é uma peça do jogador 1, pode mover pra "cima" (i - 1)
+        if (i > 0 && j > 0 && pecas[i - 1][j - 1] == 0) {
+            return true;
+        }
+        if (i > 0 && j < 8 && pecas[i - 1][j + 1] == 0) {
+            return true;
+        }
+        return false;
+    } else if (pecas[i][j] == 2) { // é uma peça do jogador 2, pode mover pra "baixo" (i + 1)
+        if (i < 8 && j > 0 && pecas[i + 1][j - 1] == 0) {
+            return true;
+        }
+        if (i < 8 && j < 8 && pecas[i + 1][j + 1] == 0) {
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
 
-            pecas[localizacao_i][localizacao_j] = pecas[peca_i][peca_j]
-            pecas[peca_i][peca_j] = 0
-            peca_selecionada = [-1, -1]
+function movimentoValido(i, j) {
+    if (!temPecaSelecionada()) {
+        return false;
+    }
+    if (pecas[i][j] != 0) {
+        return false;
+    }
+    if (jogador == 1) { // a peça selecionada precisa estar numa das posições de baixo (i + 1)
+        if (peca_selecionada[0] == i + 1 && peca_selecionada[1] == j + 1) {
+            return true;
+        }
+        if (peca_selecionada[0] == i + 1 && peca_selecionada[1] == j - 1) {
+            return true;
+        }
+        return false;
+    } else if (jogador == 2) { // a peça selecionada precisa estar numa das posições de cima (i - 1)
+        if (peca_selecionada[0] == i - 1 && peca_selecionada[1] == j + 1) {
+            return true;
+        }
+        if (peca_selecionada[0] == i - 1 && peca_selecionada[1] == j - 1) {
+            return true;
+        }
+        return false;
+    }
+}
+
+function setClicaveis() {
+    resetarClicaveis();
+    for (i = 0; i < pecas.length; i++) {
+        for (j = 0; j < pecas.length; j++) {
+            // se não tem peça selecionada
+            if (!temPecaSelecionada()) {
+                // se é uma peça do jogador atual
+                if (pecas[i][j] == jogador) {
+                    // se a peça tem pra onde se mover
+                    if (pecaPodeMover(i, j)) {
+                        clicaveis[i][j] = 1;
+                    }
+                }
+            } else { // tem uma peça selecionada
+                // posições clicáveis são as posições para onde a peça pode se mover
+                if (movimentoValido(i, j)) {
+                    clicaveis[i][j] = 1;
+                }
+            }
         }
     }
-    var html = `
-        <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.">
-                <title>Damas</title>
-                <style>
+}
 
-                    table {
-                        margin: auto;
-                        border: 1px solid black;
-                        border-collapse: collapse;
-                    }
-                    td {
-                        width: 2em;
-                        height: 2em;
-                        border: 1px solid black;
-                        border-collapse: collapse;
-                        padding: 0.2em;
-                    }
-                    .casa-preta {
-                        background: #000;
-                    }
-                    .casa-preta {
-                        background: #CBBFB9;
-                    }
-                    .espaco {
-                        width: 100%;
-                        height: 100%;
-                    }
-                    .peca {
-                        width: 100%;
-                        height: 100%;
-                        border-radius: 50%;
-                        box-shadow: 2px 2px 5px black;
-                    }
-                    .peca-branca {
-                        background: white;
-                        background-image: url('branca.png');
-                    }
-                    .peca-preta {
-                        background: #7F6150;
-                        background-image: url('preta.png');
-                    }
-                    @keyframes piscar {
-                        0% { border: 2px solid red; }
-                        50% { border: 2px solid blue; }
-                        100% { border: 2px solid red; }
-                    }
-                    .selecionado {
+function resetarPecas() {
+    pecas = [
+        [0, 2, 0, 2, 0, 2, 0, 2],
+        [2, 0, 2, 0, 2, 0, 2, 0],
+        [0, 2, 0, 2, 0, 2, 0, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 1, 0, 1, 0, 1, 0],
+        [0, 1, 0, 1, 0, 1, 0, 1],
+        [1, 0, 1, 0, 1, 0, 1, 0]
+    ];
 
-                        animation: piscar 1s infinite;
-                    }
-                </style>
-            </head>
-            <body>
-                <table>`;
+    peca_selecionada = [-1, -1];
+
+    jogador = 1;
+
+    setClicaveis();
+}
+
+function gerarHTML() {
+    var table = '';
     for (i = 0; i < 8; i++) {
-        html += "<tr>";
+        table += "<tr>";
         for (j = 0; j < 8; j++) {
             var peca = `<div class="espaco"></div>`;
             if (pecas[i][j] == 1) {
@@ -117,26 +139,95 @@ app.get('/', function(req, res) {
             }
             // if ((i + j) % 2 == 0) {
             if (casas[i][j] == 1) {
-                html += `<td class="casa-preta"></td>`;
+                table += `<td class="casa-preta"></td>`;
             } else if (casas[i][j] == 0) {
-                if (peca_selecionada[0] == i && peca_selecionada[1] == j) {
-                    html += `
-                        <td class="casa-branca selecionado">
+                if (clicaveis[i][j] == 1) {
+                    table += `
+                         <td class="casa-branca selecionado">
+                             <a href="/jogar?lin=${i}&col=${j}">${peca}</a>
+                         </td>
+                     `;
+                } else {
+                    table += `
+                        <td class="casa-branca">
                             ${peca}
                         </td>
-                    `
-                } else {
-                    html += `
-                        <td class="casa-branca">
-                            <a href="/?lin=${i}&col=${j}">${peca}</a>
-                        </td>
-                    `
+                    `;
                 }
+                // if (peca_selecionada[0] == i && peca_selecionada[1] == j) {
+                //     table += `
+                //         <td class="casa-branca selecionado">
+                //             ${peca}
+                //         </td>
+                //     `
+                // } else {
+                //     table += `
+                //         <td class="casa-branca">
+                //             <a href="/jogar?lin=${i}&col=${j}">${peca}</a>
+                //         </td>
+                //     `
+                // }
             }
         }
-        html += "</tr>";
+        table += "</tr>";
     }
-    html += "</table></body></html>";
+
+    var html = fs.readFileSync('jogo.html').toString();
+    html = html.replace("{{tabela}}", table)
+
+    return html;
+}
+
+
+
+function jogar(lin, col) {
+    if (!temPecaSelecionada()) {
+        // Nenhuma peça estava selecionada
+        // Marca a peça como selecionada
+        peca_selecionada = [lin, col];
+        // atualizar array de clicaveis
+        setClicaveis();
+        console.log(peca_selecionada)
+    } else {
+        // Já existe uma peça selecionada
+        // Move a peça selecionada para a posição passada
+        var peca_i = peca_selecionada[0];
+        var peca_j = peca_selecionada[1];
+
+        var localizacao_i = lin;
+        var localizacao_j = col;
+
+        pecas[localizacao_i][localizacao_j] = pecas[peca_i][peca_j]
+        pecas[peca_i][peca_j] = 0
+        peca_selecionada = [-1, -1]
+        if (jogador == 1) {
+            jogador = 2;
+        } else if (jogador == 2) {
+            jogador = 1;
+        }
+        setClicaveis();
+    }
+}
+
+
+
+
+app.get('/', function(req, res) {
+  let index = fs.readFileSync('index.html').toString(); // string contendo o conteúdo do arquivo
+  res.send(index);
+});
+
+app.get('/iniciar-jogo', function(req, res) {
+    resetarPecas();
+    var html = gerarHTML();
+    res.send(html);
+});
+
+app.get('/jogar', function(req, res) {
+    if (req.query['lin'] != undefined && req.query['col'] != undefined) {
+        jogar(req.query['lin'], req.query['col'])
+    }
+    var html = gerarHTML()
     res.send(html);
 });
 
